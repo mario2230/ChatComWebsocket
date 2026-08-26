@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat com WebSocket</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 140px 1fr auto;
+      gap: 8px;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    #status {
+      margin: 12px 0;
+      font-weight: bold;
+    }
+
+    #messages {
+      padding: 0;
+      list-style: none;
+    }
+
+    #messages li {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <h1>Chat em tempo real</h1>
+
+  <div id="status">Conectando...</div>
+
+  <form id="chat-form">
+    <input id="name" type="text" maxlength="30" placeholder="Seu nome" required>
+    <input id="message" type="text" maxlength="500" placeholder="Digite uma mensagem" required>
+    <button type="submit">Enviar</button>
+  </form>
+
+  <ul id="messages"></ul>
+
+  <script>
+    const statusElement = document.querySelector("#status");
+    const form = document.querySelector("#chat-form");
+    const nameInput = document.querySelector("#name");
+    const messageInput = document.querySelector("#message");
+    const messages = document.querySelector("#messages");
+
+    const protocol = location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${protocol}://${location.host}`);
+
+    function addMessage(text) {
+      const item = document.createElement("li");
+      item.textContent = text;
+      messages.appendChild(item);
+    }
+
+    socket.addEventListener("open", () => {
+      statusElement.textContent = "Conectado";
+    });
+
+    socket.addEventListener("close", () => {
+      statusElement.textContent = "Desconectado";
+    });
+
+    socket.addEventListener("error", () => {
+      statusElement.textContent = "Erro na conexão";
+    });
+
+    socket.addEventListener("message", (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "message") {
+        const time = new Date(data.sentAt).toLocaleTimeString();
+        addMessage(`[${time}] ${data.name}: ${data.text}`);
+        return;
+      }
+
+      addMessage(data.text);
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      if (socket.readyState !== WebSocket.OPEN) {
+        addMessage("A conexão ainda não está disponível.");
+        return;
+      }
+
+      socket.send(JSON.stringify({
+        name: nameInput.value.trim(),
+        text: messageInput.value.trim()
+      }));
+
+      messageInput.value = "";
+      messageInput.focus();
+    });
+  </script>
+</body>
+</html>
